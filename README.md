@@ -4,24 +4,21 @@
 
 ## ✅ **LAST MAJOR UPDATES**
 
--  ✨ Initial functional version with:
-   - One-click blur processing using WorkManager.
-   - Notifications for progress and completion.
-   - Clean file-saving to MediaStore.
-   - Image cleanup and chaining multiple workers.
+- 🔄 Enhanced UI State Management:
+   - Integration of StateFlow in BlurViewModel to observe WorkManager state in real time.
+   - Use of stateIn() to make the flow compatible with the UI component (Compose) lifecycle.
+   - Dynamic update of the interface according to state: default, in progress, completed.
 
-- 📋 Build a release version of the application : 
-   - Generate an signed APK file.
+- 🔗 Single work string with WorkManager:
+   - Replacement of .beginWith() by .beginUniqueWork() with ExistingWorkPolicy.REPLACE.
+   - Ensures that only one job chain (cleanup → blur → save) is active at a time, replacing the old one if necessary.
       
 ## ❌ **NEXT UPDATES**
 
-   - Add unique task chains using WorkManager.
-   - Implement task cancellation.
-   - Add tags to workers and track status.
    - Define task constraints (e.g., network, charging).
    - Write UI tests for the worker sequence.
-   - Use Background Task Inspector to monitor workers.
    - Display final result in UI.
+   - cancel tasks and manage states.
 
 ## 📋 **Features**
 
@@ -30,8 +27,9 @@
       - ✅ **DONE** Apply a blur effect in the background.
       - ✅ **DONE** Use WorkManager to run tasks off the UI thread.
       - ✅ **DONE** Chained tasks: cleanup -> blur -> save.
-      - ❌ **UNDONE** Create unique task chains.
-      - ❌ **UNDONE** Cancel tasks and manage states.
+      - ✅ **DONE** Create unique task chains.
+      - 🟩 **IN PROGRESS** Cancel tasks and manage states.
+      - ❌ **UNDONE** Add constraints to tasks (e.g., network, charging).
    
    - 🎉 **Notifications** :
 
@@ -42,6 +40,7 @@
       - ✅ **DONE** Load a local image and apply blur.
       - ✅ **DONE** Save blurred image to MediaStore.
       - ✅ **DONE** Clean temporary images before blur.
+      - ❌ **UNDONE** Display the final result (open image directly from the UI).
 
    - 🎨 Modern and Fluid Interface:
 
@@ -56,7 +55,7 @@
       - ✅ **DONE** Use of StateFlow for UI state handling.
       - ✅ **DONE** ViewModel for lifecycle-aware logic.
       - ✅ **DONE** Coroutines for async data operations.
-      - ❌ **UNDONE** Update UI dynamically with task tags and states.
+      - ✅ **DONE** Update UI dynamically with task tags and states.
 
    - 🧠 Architecture & Code Structure:
 
@@ -82,7 +81,7 @@
    - Install the file in your smartphone or in an emulator. (Good performance because in Release Build Variant)
    - If you want to use android studio, download the code and launch the app on an Android device or emulator. (Bad performance because in Debug Build Variant)
 2. **Start a Blur:**:
-   - Tap the Start button to apply a fixed blur.
+   - Tap the Start button to apply a fixed blur (you can also cancel the task).
    - A notification appears when the task starts.
 3. **Blur in Progress:**:
    - WorkManager executes background blur + save steps.

@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 interface BluromaticRepository {
 
     // OBSERVABLE QUI FOURNIT EN TEMPS RÉEL LES INFOS SUR L’ÉTAT DE LA TÂCHE EN COURS (EN ATTENTE, EN COURS, TERMINÉE, ÉCHEC...)
-    val outputWorkInfo: Flow<WorkInfo?>
+    val outputWorkInfo: Flow<WorkInfo>
 
     // LANCE LE TRAITEMENT DE FLOUTAGE EN FOURNISSANT UN NIVEAU DE FLOU (ENTIER)
     fun applyBlur(blurLevel: Int)
