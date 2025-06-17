@@ -19,9 +19,13 @@
    - Added task tagging using .addTag(TAG_OUTPUT) to monitor specific tasks.
    - Final image result is now displayed in the UI with a "See File" button.
 
+🧪 Instrumented Worker Tests Added :
+   - Created full integration tests for CleanupWorker, BlurWorker, and SaveImageToFileWorker using TestListenableWorkerBuilder.
+   - Validates success status and output URI correctness after each worker execution.
+
 ## ❌ **NEXT UPDATES**
 
-   - Write UI tests for the worker sequence.
+   - This app is now finish.
 
 ## 📋 **Features**
 
@@ -64,7 +68,7 @@
 
       - ✅ **DONE** MVVM architecture pattern.
       - ✅ **DONE** Clean separation between UI and business logic.
-      - ❌ **UNDONE** Write UI tests for worker chains.
+      - ✅ **DONE** Write UI tests for worker chains.
 
 ## 🛠️ **Tech Stack**
 

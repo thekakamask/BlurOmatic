@@ -14,9 +14,11 @@ activityKtx = "1.9.3"
 lifecycleVersion = "2.9.0"
 composeRuntimeLiveData = "1.6.0"
 workRuntimeKtx = "2.10.0"
+workTesting = "2.10.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-work-testing = { module = "androidx.work:work-testing", version.ref = "workTesting" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
