@@ -17,21 +17,28 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 
+// VIEWMODEL QUI GÈRE LA LOGIQUE DE L’IU POUR LE FLOUTAGE D’IMAGE
+// OBSERVE L’ÉTAT DES WORKS ET FOURNIT DES ACTIONS POUR LANCER OU ANNULER LE TRAITEMENT
+
 class BlurViewModel(private val bluromaticRepository: BluromaticRepository) : ViewModel() {
 
+    // LISTE DES NIVEAUX DE FLOU DISPONIBLES POUR LES RADIO BUTTONS
     internal val blurAmount = BlurAmountData.blurAmount
 
+    // UI STATE OBSERVÉ PAR L'IU : EN CHARGEMENT, TERMINÉ OU PAR DÉFAUT
     val blurUiState: StateFlow<BlurUiState> = bluromaticRepository.outputWorkInfo
         .map { info ->
             val outputImageUri = info.outputData.getString(KEY_IMAGE_URI)
             when {
                 info.state.isFinished && !outputImageUri.isNullOrEmpty() -> {
+                    // SI LE WORK EST TERMINÉ AVEC UN RÉSULTAT, AFFICHE L'IMAGE FINALE
                     BlurUiState.Complete(outputUri = outputImageUri)
                 }
                 info.state == WorkInfo.State.CANCELLED -> {
+                    // SI ANNULÉ, REVIENT À L’ÉTAT INITIAL
                     BlurUiState.Default
                 }
-                else -> BlurUiState.Loading
+                else -> BlurUiState.Loading // EN COURS DE TRAITEMENT
             }
         }.stateIn(
             scope = viewModelScope,
@@ -39,15 +46,17 @@ class BlurViewModel(private val bluromaticRepository: BluromaticRepository) : Vi
             initialValue = BlurUiState.Default
         )
 
-
+    // LANCE UNE NOUVELLE CHAÎNE DE TRAITEMENT FLOUTAGE
     fun applyBlur(blurLevel: Int) {
         bluromaticRepository.applyBlur(blurLevel)
     }
 
+    // ANNULER LA CHAÎNE DE WORKS EN COURS
     fun cancelWork() {
         bluromaticRepository.cancelWork()
     }
 
+    // FACTORY POUR INJECTER LE REPOSITORY DEPUIS L’APPLICATION
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
@@ -61,8 +70,9 @@ class BlurViewModel(private val bluromaticRepository: BluromaticRepository) : Vi
     }
 }
 
+// ÉTATS POSSIBLES DE L’INTERFACE
 sealed interface BlurUiState {
-    object Default : BlurUiState
-    object Loading : BlurUiState
-    data class Complete(val outputUri: String) : BlurUiState
+    object Default : BlurUiState        // ÉTAT INITIAL
+    object Loading : BlurUiState        // TRAITEMENT EN COURS
+    data class Complete(val outputUri: String) : BlurUiState // TRAITEMENT TERMINÉ AVEC URI DE L’IMAGE
 }

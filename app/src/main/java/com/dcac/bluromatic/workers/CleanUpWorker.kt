@@ -17,53 +17,41 @@ import java.io.File
 
 private const val TAG = "CleanupWorker"
 
-// WORKER QUI SUPPRIME LES IMAGES TEMPORAIRES (.PNG) APRÈS TRAITEMENT
+// WORKER QUI SUPPRIME LES FICHIERS TEMPORAIRES (.PNG) DANS LE DOSSIER DE SORTIE
+// CE NETTOYAGE EST EFFECTUÉ AVANT CHAQUE TRAITEMENT POUR ÉVITER LES FICHIERS INUTILES
 
 class CleanupWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
 
-    // MÉTHODE PRINCIPALE EXÉCUTÉE PAR WORKMANAGER
-    // ELLE SUPPRIME LES FICHIERS PNG DANS LE DOSSIER TEMPORAIRE
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override suspend fun doWork(): Result {
 
-        // NOTIFIE L'UTILISATEUR QUE LE NETTOYAGE COMMENCE
+        // NOTIFICATION DE DÉMARRAGE
         makeStatusNotification(
-            applicationContext.resources.getString(R.string.cleaning_up_files),
+            applicationContext.getString(R.string.cleaning_up_files),
             applicationContext
         )
 
         return withContext(Dispatchers.IO) {
-            // SIMULE UN DÉLAI POUR VISUALISATION
-            delay(DELAY_TIME_MILLIS)
+            delay(DELAY_TIME_MILLIS) // SIMULATION D’UN TEMPS DE TRAITEMENT
 
-            return@withContext try {
-                // ACCÈDE AU DOSSIER DE SORTIE DÉFINI
+            try {
+                // ACCÈS AU DOSSIER DE SORTIE
                 val outputDirectory = File(applicationContext.filesDir, OUTPUT_PATH)
 
-                // SI LE DOSSIER EXISTE, SUPPRIME CHAQUE FICHIER .PNG
+                // SUPPRESSION DE CHAQUE FICHIER .PNG DÉJÀ PRÉSENT
                 if (outputDirectory.exists()) {
-                    val entries = outputDirectory.listFiles()
-                    if (entries != null) {
-                        for (entry in entries) {
-                            val name = entry.name
-                            if (name.isNotEmpty() && name.endsWith(".png")) {
-                                val deleted = entry.delete()
-                                Log.i(TAG, "Deleted $name - $deleted")
-                            }
+                    outputDirectory.listFiles()?.forEach { file ->
+                        if (file.name.endsWith(".png")) {
+                            val deleted = file.delete()
+                            Log.i(TAG, "Deleted ${file.name} - $deleted")
                         }
                     }
                 }
 
-                // RETOURNE SUCCÈS SI TOUT EST OK
                 Result.success()
 
-            } catch (exception: Exception) {
-                // LOG EN CAS D'ERREUR
-                Log.e(
-                    TAG,
-                    applicationContext.resources.getString(R.string.error_cleaning_file),
-                    exception
-                )
+            } catch (e: Exception) {
+                Log.e(TAG, applicationContext.getString(R.string.error_cleaning_file), e)
                 Result.failure()
             }
         }

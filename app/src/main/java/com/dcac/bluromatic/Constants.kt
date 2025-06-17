@@ -1,23 +1,24 @@
 package com.dcac.bluromatic
 
-// Notification Channel constants
+// FICHIER CENTRALISANT TOUTES LES CONSTANTES UTILISÉES DANS L’APPLICATION
 
-// Name of Notification Channel for verbose notifications of background work
-val VERBOSE_NOTIFICATION_CHANNEL_NAME: CharSequence =
-    "Verbose WorkManager Notifications"
-const val VERBOSE_NOTIFICATION_CHANNEL_DESCRIPTION =
-    "Shows notifications whenever work starts"
-val NOTIFICATION_TITLE: CharSequence = "WorkRequest Starting"
-const val CHANNEL_ID = "VERBOSE_NOTIFICATION"
-const val NOTIFICATION_ID = 1
+// INFOS POUR LES NOTIFICATIONS AFFICHÉES PAR LES WORKERS
+val VERBOSE_NOTIFICATION_CHANNEL_NAME: CharSequence = "Verbose WorkManager Notifications"  // NOM DU CANAL
+const val VERBOSE_NOTIFICATION_CHANNEL_DESCRIPTION = "Shows notifications whenever work starts"  // DESCRIPTION DU CANAL
+val NOTIFICATION_TITLE: CharSequence = "WorkRequest Starting"  // TITRE DES NOTIFICATIONS
+const val CHANNEL_ID = "VERBOSE_NOTIFICATION"                 // ID DU CANAL DE NOTIFICATION
+const val NOTIFICATION_ID = 1                                 // ID DE LA NOTIFICATION
 
-// The name of the image manipulation work
+// NOM UNIQUE DE LA CHAÎNE DE WORKS UTILISÉE POUR GÉRER LES POLITIQUES (EX: REPLACE)
 const val IMAGE_MANIPULATION_WORK_NAME = "image_manipulation_work"
 
-// Other keys
+// NOM DU DOSSIER LOCAL DE SORTIE POUR LES IMAGES TRAITÉES
 const val OUTPUT_PATH = "blur_filter_outputs"
+
+// CLÉS UTILISÉES POUR LES ENTRÉES/SORTIES DE DONNÉES DANS LES WORKREQUESTS
 const val KEY_IMAGE_URI = "KEY_IMAGE_URI"
 const val TAG_OUTPUT = "OUTPUT"
 const val KEY_BLUR_LEVEL = "KEY_BLUR_LEVEL"
 
+// TEMPS D’ATTENTE SIMULÉ PAR LES WORKERS (EN MILLISECONDES)
 const val DELAY_TIME_MILLIS: Long = 3000

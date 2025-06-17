@@ -22,62 +22,58 @@ import androidx.core.net.toUri
 
 private const val TAG = "SaveImageToFileWorker"
 
-// WORKER QUI SAUVEGARDE UNE IMAGE FLOUTÉE DANS LA GALERIE DU TÉLÉPHONE (MediaStore)
+// WORKER QUI SAUVEGARDE L’IMAGE FLOUTÉE DANS LA GALERIE (MediaStore)
+// UTILISÉ EN FIN DE CHAÎNE POUR RENDRE LE RÉSULTAT ACCESSIBLE AU GRAND PUBLIC
 
 class SaveImageToFileWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
 
-    // TITRE DE L’IMAGE ET FORMAT POUR LA DATE DE SAUVEGARDE
+    // INFOS POUR L’ENREGISTREMENT DE L’IMAGE DANS MediaStore
     private val title = "Blurred Image"
     private val dateFormatter = SimpleDateFormat(
         "yyyy.MM.dd 'at' HH:mm:ss z",
         Locale.getDefault()
     )
 
-    // MÉTHODE PRINCIPALE EXÉCUTÉE PAR WORKMANAGER
-    // ELLE RÉCUPÈRE L’IMAGE TRAITÉE ET L’INSÈRE DANS LA GALERIE
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override suspend fun doWork(): Result {
 
-        // AFFICHE UNE NOTIFICATION POUR INDIQUER QUE LA SAUVEGARDE COMMENCE
+        // NOTIFIE QUE LA SAUVEGARDE COMMENCE
         makeStatusNotification(
-            applicationContext.resources.getString(R.string.saving_image),
+            applicationContext.getString(R.string.saving_image),
             applicationContext
         )
 
         return withContext(Dispatchers.IO) {
-            // DÉLAI POUR SIMULER UN TRAITEMENT
-            delay(DELAY_TIME_MILLIS)
+            delay(DELAY_TIME_MILLIS) // POUR EFFET VISUEL
 
-            val resolver = applicationContext.contentResolver
-
-            return@withContext try {
-                // RÉCUPÉRATION DE L’IMAGE DEPUIS L’URI PASSÉE EN ENTRÉE
+            try {
                 val resourceUri = inputData.getString(KEY_IMAGE_URI)
+
+                // CHARGE L’IMAGE TRAITÉE DEPUIS L’URI
                 val bitmap = BitmapFactory.decodeStream(
-                    resourceUri?.let { resolver.openInputStream(it.toUri()) }
+                    resourceUri?.let {
+                        applicationContext.contentResolver.openInputStream(it.toUri())
+                    }
                 )
 
-                // SAUVEGARDE DANS LE MediaStore (GALERIE)
+                // INSÈRE L’IMAGE DANS LA GALERIE
                 val imageUrl = MediaStore.Images.Media.insertImage(
-                    resolver, bitmap, title, dateFormatter.format(Date())
+                    applicationContext.contentResolver,
+                    bitmap,
+                    title,
+                    dateFormatter.format(Date())
                 )
 
-                // SI L’IMAGE EST BIEN INSÉRÉE, RETOURNE L’URI EN SORTIE
+                // SI SUCCÈS → RETOURNE L’URI POUR QUE LE ViewModel PUISSE L’AFFICHER
                 if (!imageUrl.isNullOrEmpty()) {
-                    val output = workDataOf(KEY_IMAGE_URI to imageUrl)
-                    Result.success(output)
+                    Result.success(workDataOf(KEY_IMAGE_URI to imageUrl))
                 } else {
-                    // ERREUR DE SAUVEGARDE
                     Log.e(TAG, applicationContext.getString(R.string.writing_to_mediaStore_failed))
                     Result.failure()
                 }
-            } catch (exception: Exception) {
-                // EXCEPTION GÉNÉRALE : LOG + ÉCHEC
-                Log.e(
-                    TAG,
-                    applicationContext.resources.getString(R.string.error_saving_image),
-                    exception
-                )
+
+            } catch (e: Exception) {
+                Log.e(TAG, applicationContext.getString(R.string.error_saving_image), e)
                 Result.failure()
             }
         }

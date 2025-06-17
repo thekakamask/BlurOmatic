@@ -23,86 +23,72 @@ import com.dcac.bluromatic.workers.SaveImageToFileWorker
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.mapNotNull
 
-// CLASSE QUI IMPLÉMENTE L’INTERFACE BluromaticRepository ET GÈRE LE LANCEMENT DES WORKERS AVEC WorkManager
+// CLASSE QUI IMPLÉMENTE BluromaticRepository EN UTILISANT WorkManager POUR PLANIFIER ET EXÉCUTER DES TÂCHES EN ARRIÈRE-PLAN
+// RESPONSABLE DE CONSTRUIRE ET ENCHAÎNER LES TRAVAUX (Cleanup, Blur, Save), DE GÉRER LES CONTRAINTES ET D’EXPOSER LES RÉSULTATS
+
 class WorkManagerBluromaticRepository(context: Context) : BluromaticRepository {
 
-    // STOCKE L’URI DE L’IMAGE À TRAITER (DANS CETTE VERSION : UNE IMAGE EN DUR)
+    // URI DE L’IMAGE À TRAITER — FIXÉ ICI POUR SIMPLIFIER
     private var imageUri: Uri = context.getImageUri()
 
-    // RÉCUPÈRE L’INSTANCE CENTRALE DE WORKMANAGER POUR PLANIFIER DES CHAÎNES DE TÂCHES
+    // INSTANCE DE WorkManager UTILISÉE POUR PLANIFIER LES TÂCHES
     private val workManager = WorkManager.getInstance(context)
 
-    // UN FLUX QUI OBSERVE LE STATUT DES TÂCHES ASSOCIÉES À LA BALISE TAG_OUTPUT.
-    // IL CONVERTIT LiveData<List<WorkInfo>> EN Flow<WorkInfo?> EN PRENANT LE PREMIER ÉLÉMENT SI DISPONIBLE.
-    // UTILISABLE POUR METTRE À JOUR L’UI EN TEMPS RÉEL (EX : AFFICHER LE RÉSULTAT FINAL DU FLOU).
+    // OBSERVE L'ÉTAT DE LA TÂCHE DE SAUVEGARDE GRÂCE À LA BALISE TAG_OUTPUT
+    // CONVERTIT LE LiveData EN Flow POUR S’INTÉGRER À L’ARCHITECTURE MODERNE (Compose + Flow)
     override val outputWorkInfo: Flow<WorkInfo> =
         workManager.getWorkInfosByTagLiveData(TAG_OUTPUT).asFlow().mapNotNull {
             if (it.isNotEmpty()) it.first() else null
         }
 
-    // MÉTHODE PRINCIPALE POUR LANCER LE PROCESSUS DE FLOUTAGE + SAUVEGARDE DE L’IMAGE
+    // LANCE UNE NOUVELLE CHAÎNE DE TÂCHES (NETTOYAGE → FLOUTAGE → SAUVEGARDE)
+    // AVEC CONTRAINTE : NE PAS S’EXÉCUTER SI LA BATTERIE EST FAIBLE
     @SuppressLint("SuspiciousIndentation", "EnqueueWork")
     override fun applyBlur(blurLevel: Int) {
 
-        // LOG POUR AIDER AU DEBUGGING DANS LOGCAT
         Log.d("BluromaticRepo", "applyBlur() called, launching BlurWorker")
 
-        // 1. DÉMARRE UNE CHAÎNE DE TRAVAIL AVEC UNE TÂCHE DE NETTOYAGE
-        // IL PEUT Y AVOIR PLUSIEURS CHAINES EN MEME TEMPS
-        /*var continuation = workManager
-            .beginWith(
+        // ÉTAPE 1 : CRÉATION D’UNE CHAÎNE UNIQUE DE TÂCHES, NOMMÉE POUR POUVOIR L’ANNULER OU LA REMPLACER
+        var continuation = workManager.beginUniqueWork(
+            IMAGE_MANIPULATION_WORK_NAME,
+            ExistingWorkPolicy.REPLACE,
             OneTimeWorkRequest.from(CleanupWorker::class.java)
-        )*/
+        )
 
-        // 1. DÉMARRE UNE CHAÎNE DE TRAVAIL UNIQUE AVEC UNE TÂCHE DE NETTOYAGE
-        // UTILISE `beginUniqueWork` POUR S'ASSURER QU'UNE SEULE CHAÎNE DE TRAVAIL
-        // PORTE LE NOM `IMAGE_MANIPULATION_WORK_NAME` À LA FOIS.
-        // SI UNE CHAÎNE EXISTANTE PORTE CE NOM, ELLE SERA REMPLACÉE (POLITIQUE: REPLACE).
-        var continuation = workManager
-            .beginUniqueWork(
-                IMAGE_MANIPULATION_WORK_NAME,
-                ExistingWorkPolicy.REPLACE,
-                OneTimeWorkRequest.from(CleanupWorker::class.java)
-            )
-
+        // ÉTAPE 2 : CONSTRUCTION DE LA TÂCHE DE FLOUTAGE AVEC CONTRAINTE DE BATTERIE
         val constraints = Constraints.Builder()
             .setRequiresBatteryNotLow(true)
             .build()
 
-        // 2. CONSTRUIT LA TÂCHE QUI APPLIQUE LE FLOU
         val blurBuilder = OneTimeWorkRequestBuilder<BlurWorker>()
+            .setInputData(createInputDataForWorkRequest(blurLevel, imageUri))
+            .setConstraints(constraints)
 
-        // 3. FOURNIT LES DONNÉES NÉCESSAIRES AU WORKER : URI + NIVEAU DE FLOU
-        blurBuilder.setInputData(createInputDataForWorkRequest(blurLevel, imageUri))
-
-        blurBuilder.setConstraints(constraints)
-
-        // 4. AJOUTE LA TÂCHE DE FLOUTAGE DANS LA CHAÎNE
+        // ÉTAPE 3 : AJOUT DU WORKER DE FLOUTAGE À LA CHAÎNE
         continuation = continuation.then(blurBuilder.build())
 
-        // 5. CONSTRUIT LA TÂCHE DE SAUVEGARDE DANS LE MEDIACONTENT (Galerie)
+        // ÉTAPE 4 : CONSTRUCTION DE LA TÂCHE DE SAUVEGARDE AVEC UNE BALISE POUR OBSERVER SON ÉTAT
         val save = OneTimeWorkRequestBuilder<SaveImageToFileWorker>()
             .addTag(TAG_OUTPUT)
             .build()
 
-        // 6. AJOUTE CETTE TÂCHE À LA SUITE DE LA TÂCHE DE FLOUTAGE
+        // ÉTAPE 5 : AJOUT DU WORKER DE SAUVEGARDE À LA FIN DE LA CHAÎNE
         continuation = continuation.then(save)
 
-        // 7. DÉMARRE EFFECTIVEMENT LA CHAÎNE DE TRAVAILS (NETTOYAGE → FLOUTAGE → SAUVEGARDE)
+        // ÉTAPE 6 : DÉMARRAGE EFFECTIF DE LA CHAÎNE DE TRAVAIL
         continuation.enqueue()
     }
 
-    // MÉTHODE VIDE POUR LE MOMENT — PERMETTRA PLUS TARD D’ANNULER LES WORKS EN COURS
+    // ANNULATION DE LA CHAÎNE DE TÂCHES ACTUELLE GRÂCE À SON NOM UNIQUE
     override fun cancelWork() {
         workManager.cancelUniqueWork(IMAGE_MANIPULATION_WORK_NAME)
     }
 
-    // MÉTHODE UTILITAIRE QUI CRÉE L’OBJET `Data` ATTENDU PAR LE BlurWorker
-    // CET OBJET CONTIENT L’IMAGE D’ENTRÉE ET LE NIVEAU DE FLOU À APPLIQUER
+    // CRÉE L’OBJET Data CONTENANT LES INFOS À TRANSMETTRE AU BlurWorker (URI ET NIVEAU DE FLOU)
     private fun createInputDataForWorkRequest(blurLevel: Int, imageUri: Uri): Data {
         val builder = Data.Builder()
-        builder.putString(KEY_IMAGE_URI, imageUri.toString()) // STOCKE L’URI EN TEXTE
-        builder.putInt(KEY_BLUR_LEVEL, blurLevel)             // STOCKE LE NIVEAU DE FLOU
+        builder.putString(KEY_IMAGE_URI, imageUri.toString()) // ENVOIE L’URI DE L’IMAGE
+        builder.putInt(KEY_BLUR_LEVEL, blurLevel)             // ENVOIE LE NIVEAU DE FLOU
         return builder.build()
     }
 }

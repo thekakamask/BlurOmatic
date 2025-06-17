@@ -19,72 +19,52 @@ import androidx.core.net.toUri
 
 private const val TAG = "BlurWorker"
 
-// WORKER QUI APPLIQUE UN FLOU À UNE IMAGE EN ARRIÈRE-PLAN AVEC WORKMANAGER
-// CE WORKER EST LANCÉ PAR LE REPOSITORY LORSQU'ON DEMANDE À TRAITER UNE IMAGE
+// WORKER RESPONSABLE D’APPLIQUER UN FLOU À UNE IMAGE EN ARRIÈRE-PLAN
+// CE WORKER UTILISE L’URI DE L’IMAGE + UN NIVEAU DE FLOU, ET RENVOIE UNE NOUVELLE IMAGE FLOUTÉE (FICHIER TEMPORAIRE)
 
 class BlurWorker(
     ctx: Context,
     params: WorkerParameters
 ) : CoroutineWorker(ctx, params) {
 
-    // MÉTHODE PRINCIPALE EXÉCUTÉE LORSQUE LE WORKER EST LANCÉ
-    // ELLE FAIT TOUT : CHARGEMENT DE L'IMAGE, APPLICATION DU FLOU, SAUVEGARDE ET RETOUR DE L'URI
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override suspend fun doWork(): Result {
 
-        // RÉCUPÉRATION DE L’URI DE L’IMAGE ET DU NIVEAU DE FLOU DEPUIS LES DONNÉES D’ENTRÉE
+        // RÉCUPÈRE LES DONNÉES D’ENTRÉE : L’IMAGE À TRAITER ET LE NIVEAU DE FLOU À APPLIQUER
         val resourceUri = inputData.getString(KEY_IMAGE_URI)
         val blurLevel = inputData.getInt(KEY_BLUR_LEVEL, 1)
 
         Log.d(TAG, "doWork() executing")
 
-        // AFFICHE UNE NOTIFICATION POUR SIGNALER QUE LE FLOUTAGE COMMENCE
+        // ENVOIE UNE NOTIFICATION POUR INFORMER L’UTILISATEUR
         makeStatusNotification(
             applicationContext.resources.getString(R.string.blurring_image),
             applicationContext
         )
 
-        // TOUT LE TRAITEMENT S’EFFECTUE DANS UN CONTEXTE I/O POUR NE PAS BLOQUER LE THREAD PRINCIPAL
         return withContext(Dispatchers.IO) {
+            delay(DELAY_TIME_MILLIS) // SIMULATION D’UNE LATENCE
 
-            // SIMULE UN DÉLAI POUR VISUALISER LE TRAITEMENT
-            delay(DELAY_TIME_MILLIS)
-
-            return@withContext try {
-
-                // VÉRIFIE QUE L’URI DE L’IMAGE EST VALIDE
+            try {
                 require(!resourceUri.isNullOrBlank()) {
-                    val errorMessage = applicationContext.getString(R.string.invalid_input_uri)
-                    Log.e(TAG, errorMessage)
-                    errorMessage
+                    applicationContext.getString(R.string.invalid_input_uri)
                 }
 
-                // OUVRE UN FLUX VERS L’IMAGE À L’AIDE DU CONTENT RESOLVER
-                val resolver = applicationContext.contentResolver
+                // CHARGE L’IMAGE D’ENTRÉE ET CRÉE UNE VERSION FLOUTÉE
                 val picture = BitmapFactory.decodeStream(
-                    resolver.openInputStream(resourceUri.toUri())
+                    applicationContext.contentResolver.openInputStream(resourceUri.toUri())
                 )
+                val blurredBitmap = blurBitmap(picture, blurLevel)
 
-                // APPLIQUE L’EFFET DE FLOU SELON LE NIVEAU DEMANDÉ
-                val output = blurBitmap(picture, blurLevel)
+                // ENREGISTRE L’IMAGE TRAITÉE DANS UN FICHIER TEMPORAIRE
+                val outputUri = writeBitmapToFile(applicationContext, blurredBitmap)
 
-                // SAUVEGARDE L’IMAGE FLOUTÉE DANS UN FICHIER TEMPORAIRE ET RÉCUPÈRE SON URI
-                val outputUri = writeBitmapToFile(applicationContext, output)
-
-                // PRÉPARE LES DONNÉES DE SORTIE AVEC L’URI DE L’IMAGE TRAITÉE
+                // RENVOIE L’URI DE L’IMAGE TRAITÉE EN DONNÉE DE SORTIE
                 val outputData = workDataOf(KEY_IMAGE_URI to outputUri.toString())
-
-                // RETOURNE UN SUCCÈS AVEC LES DONNÉES DE SORTIE POUR QUE L’UI PUISSE Y ACCÉDER
                 Result.success(outputData)
 
             } catch (throwable: Throwable) {
-                // EN CAS D’ERREUR, ENVOIE UN LOG ET RETOURNE UN ÉCHEC
-                Log.e(
-                    TAG,
-                    applicationContext.resources.getString(R.string.error_applying_blur),
-                    throwable
-                )
-
+                Log.e(TAG, applicationContext.getString(R.string.error_applying_blur), throwable)
                 Result.failure()
             }
         }
