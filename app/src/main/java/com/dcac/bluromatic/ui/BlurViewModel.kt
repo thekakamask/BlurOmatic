@@ -10,6 +10,7 @@ import com.dcac.bluromatic.BluromaticApplication
 import com.dcac.bluromatic.data.BlurAmountData
 import com.dcac.bluromatic.data.BluromaticRepository
 import androidx.work.WorkInfo
+import com.dcac.bluromatic.KEY_IMAGE_URI
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -22,9 +23,10 @@ class BlurViewModel(private val bluromaticRepository: BluromaticRepository) : Vi
 
     val blurUiState: StateFlow<BlurUiState> = bluromaticRepository.outputWorkInfo
         .map { info ->
+            val outputImageUri = info.outputData.getString(KEY_IMAGE_URI)
             when {
-                info.state.isFinished -> {
-                    BlurUiState.Complete(outputUri = "")
+                info.state.isFinished && !outputImageUri.isNullOrEmpty() -> {
+                    BlurUiState.Complete(outputUri = outputImageUri)
                 }
                 info.state == WorkInfo.State.CANCELLED -> {
                     BlurUiState.Default
@@ -40,6 +42,10 @@ class BlurViewModel(private val bluromaticRepository: BluromaticRepository) : Vi
 
     fun applyBlur(blurLevel: Int) {
         bluromaticRepository.applyBlur(blurLevel)
+    }
+
+    fun cancelWork() {
+        bluromaticRepository.cancelWork()
     }
 
     companion object {

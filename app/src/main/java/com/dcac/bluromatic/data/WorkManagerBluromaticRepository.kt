@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.asFlow
+import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequest
@@ -64,11 +65,17 @@ class WorkManagerBluromaticRepository(context: Context) : BluromaticRepository {
                 OneTimeWorkRequest.from(CleanupWorker::class.java)
             )
 
+        val constraints = Constraints.Builder()
+            .setRequiresBatteryNotLow(true)
+            .build()
+
         // 2. CONSTRUIT LA TÂCHE QUI APPLIQUE LE FLOU
         val blurBuilder = OneTimeWorkRequestBuilder<BlurWorker>()
 
         // 3. FOURNIT LES DONNÉES NÉCESSAIRES AU WORKER : URI + NIVEAU DE FLOU
         blurBuilder.setInputData(createInputDataForWorkRequest(blurLevel, imageUri))
+
+        blurBuilder.setConstraints(constraints)
 
         // 4. AJOUTE LA TÂCHE DE FLOUTAGE DANS LA CHAÎNE
         continuation = continuation.then(blurBuilder.build())
@@ -86,7 +93,9 @@ class WorkManagerBluromaticRepository(context: Context) : BluromaticRepository {
     }
 
     // MÉTHODE VIDE POUR LE MOMENT — PERMETTRA PLUS TARD D’ANNULER LES WORKS EN COURS
-    override fun cancelWork() {}
+    override fun cancelWork() {
+        workManager.cancelUniqueWork(IMAGE_MANIPULATION_WORK_NAME)
+    }
 
     // MÉTHODE UTILITAIRE QUI CRÉE L’OBJET `Data` ATTENDU PAR LE BlurWorker
     // CET OBJET CONTIENT L’IMAGE D’ENTRÉE ET LE NIVEAU DE FLOU À APPLIQUER
